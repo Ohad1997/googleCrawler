@@ -22,7 +22,7 @@ detector = dlib.get_frontal_face_detector()
 
 
 directory = os.path.join(os.path.dirname(os.path.abspath(__file__)),"Images") # Make a new folder called "Images" in the current folder
-requestPool= mp.cpu_count() * 12 # determines the amount of proccesses working simultaneously for sending requests to download images
+requestPool= mp.cpu_count() * 12 # Determines the amount of proccesses working simultaneously for sending requests to download images
 
 
 def findFaces(file):
