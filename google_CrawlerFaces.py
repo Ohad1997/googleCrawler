@@ -69,7 +69,7 @@ def openUrl(browser,searchtext):
     # Open the link
     browser.get(url)
     print("Getting you a lot of images. This may take a few moments...")
-    repeatAmount=120 # A safe range to get a minimum of 700 images
+    repeatAmount=120 # A safe range to get a minimum of 600 images
     for _ in range(repeatAmount):
         browser.execute_script("window.scrollTo(0, document.body.scrollHeight);") # Scroll to bottom of page
         try:
@@ -94,8 +94,8 @@ def extended_openUrl(browser,imgUrl):
     inputElement.send_keys(Keys.ENTER)
     try:
         browser.find_element_by_class_name("mnr-c") # This class only shows up when google returns an error
-        return -1
-    except Exception:
+        return None
+    except Exception: 
         pass
     time.sleep(0.5)
     textElement=browser.find_element_by_class_name("gLFyf") # Input text
@@ -137,7 +137,7 @@ def main():
         if len(imgUrl)>70: # Url is too long so cut to the chase before getting an error
             continue
         source= extended_openUrl(browser,imgUrl)# Get related images
-        if source==-1:
+        if not source:
             continue
         SecondaryImages=sliceSource(source)# Divides the image urls
         with mp.Pool(requestPool) as p:# Workers downloading the images simultaneously
