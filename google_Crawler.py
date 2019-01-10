@@ -16,25 +16,15 @@ requestPool= mp.cpu_count() * 12 # Determines the amount of proccesses working s
 
 def sliceSource(source):
     soup = BS(source, "lxml")
-    Images=[]
+    return [imtype(a) for a in soup.find_all("div",{"class":"rg_meta"})] 
 
-    # Divide the urls of the images
-    for a in soup.find_all("div",{"class":"rg_meta"}):
-        link , Type =json.loads(a.text)["ou"]  ,json.loads(a.text)["ity"]
-        # A double check to make sure we have only png and jpg images and no characters are present after the file .ending
-        if Type=='jpg': 
-            findText= link.lower().find(".jpg")
-            if findText !=-1:
-                link= link[:findText+4]
-            Images.append(link)
-        elif Type=='png':
-            findText= link.lower().find(".png")
-            if findText !=-1:
-                link= link[:findText+4]
-
-            Images.append(link)
-    return Images  
-
+def imtype(a):
+    ja=json.loads(a.text)
+    link, ftype = ja["ou"]  ,ja["ity"]
+    findText= link.lower().find(f".{ftype}")
+    if findText !=-1:
+        link = link[:findText+4]
+    return link
 
 def downloadImg(link):
     print(f"downloading: {link}")
@@ -58,9 +48,8 @@ def openUrl(browser,searchtext):
             browser.find_element_by_id("smb").click() # Click on "show more images" button
         except Exception:
             pass
-
-    source = browser.page_source
-    return source
+        
+    return browser.page_source
 
 
 def extended_openUrl(browser,imgUrl):
@@ -76,7 +65,7 @@ def extended_openUrl(browser,imgUrl):
     inputElement.send_keys(Keys.ENTER)
     try:
         browser.find_element_by_class_name("mnr-c") # This class only shows up when google returns an error
-        return -1
+        return None
     except Exception:
         pass
     time.sleep(0.5)
@@ -111,19 +100,19 @@ def main():
     if not os.path.exists(directory): # If folder "Images" doesnt exist, create it
         os.makedirs(directory)
 
-    ActualImages=sliceSource(source) # Divides the Images urls
+    actualImages=sliceSource(source) # Divides the Images urls
     with mp.Pool(requestPool) as p: # Workers downloading the Images simultaneously
-        p.map(downloadImg, [url for url in ActualImages])
+        p.map(downloadImg, [url for url in actualImages])
 
-    for imgUrl in ActualImages:
+    for imgUrl in actualImages:
         if len(imgUrl)>70: # Url is too long so cut to the chase before getting an error
             continue
         source= extended_openUrl(browser,imgUrl)# Get related images
-        if source==-1:
+        if not source:
             continue
-        SecondaryImages=sliceSource(source)# Divides the image urls
+        secondaryImages=sliceSource(source)# Divides the image urls
         with mp.Pool(requestPool) as p:# Workers downloading the images simultaneously
-            p.map(downloadImg, [url for url in SecondaryImages])
+            p.map(downloadImg, [url for url in secondaryImages])
 
 
 
