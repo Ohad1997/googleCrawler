@@ -9,6 +9,7 @@ import json
 import sys
 import time
 import requests
+import numpy as np
 import multiprocessing as mp
 
 
@@ -22,43 +23,28 @@ detector = dlib.get_frontal_face_detector()
 
 
 directory = os.path.join(os.path.dirname(os.path.abspath(__file__)),"Images") # Make a new folder called "Images" in the current folder
-requestPool= mp.cpu_count() * 12 # Determines the amount of proccesses working simultaneously for sending requests to download images
+requestPool= mp.cpu_count() * 4 # Determines the amount of proccesses working simultaneously for sending requests to download images
 
 
-def findFaces(file):
+def findFaces(link):
     try:
-        fname = os.path.join(directory,os.fsdecode(file))
-        print(f"proccesing: {fname}")
-        im = cv2.imread(fname, cv2.IMREAD_COLOR)
-        gray = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY) # convert image to grayscale
-        gray = cv2.resize(gray, (int(gray.shape[1] * SCALE_FACTOR),int(gray.shape[0] * SCALE_FACTOR))) # resize image to detect faster
+        r = requests.get(link, allow_redirects=False, timeout=10)
+        nparr = np.fromstring(r.content, np.uint8)
+        im = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        gray = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
+        gray = cv2.resize(gray, (int(gray.shape[1] * SCALE_FACTOR),int(gray.shape[0] * SCALE_FACTOR))) 
         rects = detector(gray, 1)
-        if len(rects) == 0:# no face, remove image
-            os.remove(fname)   
-    except Exception:
-        os.remove(fname)      
+        if rects:
+            fname = os.path.join(directory, link.split('/')[-1])
+            with open(fname, 'wb') as f:
+                f.write(r.content)
+    except Exception as e:
+        print("Download failed:", e)  
 
 
 def sliceSource(source):
     soup = BS(source, "lxml")
-    Images=[]
-
-    # Divide the urls of the images
-    for a in soup.find_all("div",{"class":"rg_meta"}):
-        link , Type =json.loads(a.text)["ou"]  ,json.loads(a.text)["ity"]
-        # A double check to make sure we have only png and jpg images and no characters are present after the file .ending
-        if Type=='jpg': 
-            findText= link.lower().find(".jpg")
-            if findText !=-1:
-                link= link[:findText+4]
-            Images.append(link)
-        elif Type=='png':
-            findText= link.lower().find(".png")
-            if findText !=-1:
-                link= link[:findText+4]
-
-            Images.append(link)
-    return Images  
+    return [imtype(a) for a in soup.find_all("div",{"class":"rg_meta"})] 
 
 
 def downloadImg(link):
@@ -70,6 +56,13 @@ def downloadImg(link):
     except Exception as e:
         print("Download failed:", e) 
 
+def imtype(a):
+    ja=json.loads(a.text)
+    link, ftype = ja["ou"]  ,ja["ity"]
+    findText= link.lower().find(f".{ftype}")
+    if findText !=-1:
+        link = link[:findText+4]
+    return link
 
 def openUrl(browser,searchtext):
     url = "https://www.google.com/search?q="+searchtext+"&source=lnms&tbm=isch"
@@ -138,7 +131,7 @@ def main():
 
     ActualImages=sliceSource(source) # Divides the Images urls
     with mp.Pool(requestPool) as p: # Workers downloading the Images simultaneously
-        p.map(downloadImg, [url for url in ActualImages])
+        p.map(findFaces, [url for url in ActualImages])
 
     for imgUrl in ActualImages:
         if len(imgUrl)>70: # Url is too long so cut to the chase before getting an error
@@ -148,12 +141,7 @@ def main():
             continue
         SecondaryImages=sliceSource(source)# Divides the image urls
         with mp.Pool(requestPool) as p:# Workers downloading the images simultaneously
-            p.map(downloadImg, [url for url in SecondaryImages])
-
-
-
-    with mp.Pool(mp.cpu_count()-1) as p:# Workers finding faces in the folder files
-        p.map(findFaces, [file for file in os.listdir(directory)])
+            p.map(findFaces, [url for url in SecondaryImages])
 
 
 
