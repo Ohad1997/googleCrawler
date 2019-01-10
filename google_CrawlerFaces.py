@@ -12,7 +12,6 @@ import requests
 import numpy as np
 import multiprocessing as mp
 
-
 # Libraries imported to find faces
 import cv2
 import dlib
@@ -77,8 +76,7 @@ def openUrl(browser,searchtext):
         except Exception:
             pass
 
-    source = browser.page_source
-    return source
+    return browser.page_source
 
 
 def extended_openUrl(browser,imgUrl):
@@ -129,19 +127,19 @@ def main():
     if not os.path.exists(directory): # If folder "Images" doesnt exist, create it
         os.makedirs(directory)
 
-    ActualImages=sliceSource(source) # Divides the Images urls
+    actualImages=sliceSource(source) # Divides the Images urls
     with mp.Pool(requestPool) as p: # Workers downloading the Images simultaneously
-        p.map(findFaces, [url for url in ActualImages])
+        p.map(findFaces, [url for url in actualImages])
 
-    for imgUrl in ActualImages:
+    for imgUrl in actualImages:
         if len(imgUrl)>70: # Url is too long so cut to the chase before getting an error
             continue
         source= extended_openUrl(browser,imgUrl)# Get related images
         if not source:
             continue
-        SecondaryImages=sliceSource(source)# Divides the image urls
+        secondaryImages=sliceSource(source)# Divides the image urls
         with mp.Pool(requestPool) as p:# Workers downloading the images simultaneously
-            p.map(findFaces, [url for url in SecondaryImages])
+            p.map(findFaces, [url for url in secondaryImages])
 
 
 
