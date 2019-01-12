@@ -119,15 +119,15 @@ def main():
     with mp.Pool(requestPool) as p: # Workers downloading the Images simultaneously
         p.map(downloadImg, [url for url in actualImages])
 
-    for imgUrl in actualImages:
-        if len(imgUrl)>70: # Url is too long so cut to the chase before getting an error
-            continue
-        source= extended_openUrl(browser,imgUrl)# Get related images
-        if not source:
-            continue
-        secondaryImages=sliceSource(source)# Divides the image urls
-        with mp.Pool(requestPool) as p:# Workers downloading the images simultaneously
-            p.map(downloadImg, [url for url in secondaryImages])
+    #for imgUrl in actualImages:
+    #    if len(imgUrl)>70: # Url is too long so cut to the chase before getting an error
+    #        continue
+    #    source= extended_openUrl(browser,imgUrl)# Get related images
+    #    if not source:
+    #        continue
+    #    secondaryImages=sliceSource(source)# Divides the image urls
+    #   with mp.Pool(requestPool) as p:# Workers downloading the images simultaneously
+    #        p.map(downloadImg, [url for url in secondaryImages])
 
 
 
