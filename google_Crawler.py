@@ -9,10 +9,13 @@ import json
 import sys
 import time
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util import Retry
 import multiprocessing as mp
 
 directory = os.path.join(os.path.dirname(os.path.abspath(__file__)),"Images") # Make a new folder called "Images" in the current folder
 requestPool= mp.cpu_count() * 12 # Determines the amount of proccesses working simultaneously for sending requests to download images
+session = requests.Session() # new session of requests
 
 def sliceSource(source):
     soup = BS(source, "lxml")
@@ -29,9 +32,10 @@ def imtype(a):
 def downloadImg(link):
     print(f"downloading: {link}")
     try:
-        r = requests.get(link, allow_redirects=False, timeout=10)
+        r = session.get(link, allow_redirects=False, timeout=4).content
         fname=os.path.join(os.path.dirname(os.path.abspath(__file__)),"images",link.split('/')[-1])
-        open(fname, 'wb').write(r.content)
+        with open(fname, 'wb') as f
+            f.write(r)
     except Exception as e:
         print("Download failed:", e) 
 
@@ -86,6 +90,13 @@ def main():
     options.add_argument('--no-sandbox')
     options.add_argument("--headless")
     options.add_argument('--log-level=3')
+    
+    retry = Retry(connect=2, backoff_factor=0.5)
+    adapter = HTTPAdapter(max_retries=retry)
+    session.mount('http://', adapter)
+    session.mount('https://', adapter)
+
+    
 
     try:
         browser = webdriver.Chrome('chromedriver', chrome_options=options)
