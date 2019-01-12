@@ -19,22 +19,26 @@ session = requests.Session() # new session of requests
 
 def sliceSource(source):
     soup = BS(source, "lxml")
-    return [imtype(a) for a in soup.find_all("div",{"class":"rg_meta"})] 
+    res=(imtype(a) for a in soup.find_all("div",{"class":"rg_meta"})) 
+    return [value for value in res if value]
 
 def imtype(a):
     ja=json.loads(a.text)
+    legal_types=["png","jpg"]
     link, ftype = ja["ou"]  ,ja["ity"]
-    findText= link.lower().find(f".{ftype}")
-    if findText !=-1:
-        link = link[:findText+4]
-    return link
+    if any(t in ftype for t in legal_types):
+        findText= link.lower().find(f".{ftype}")
+        if findText !=-1:
+            link = link[:findText+4]
+        return link
+    return None
 
 def downloadImg(link):
     print(f"downloading: {link}")
     try:
         r = session.get(link, allow_redirects=False, timeout=4).content
         fname=os.path.join(os.path.dirname(os.path.abspath(__file__)),"images",link.split('/')[-1])
-        with open(fname, 'wb') as f
+        with open(fname, 'wb') as f:
             f.write(r)
     except Exception as e:
         print("Download failed:", e) 
