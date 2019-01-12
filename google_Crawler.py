@@ -14,7 +14,7 @@ from urllib3.util import Retry
 import multiprocessing as mp
 
 directory = os.path.join(os.path.dirname(os.path.abspath(__file__)),"Images") # Make a new folder called "Images" in the current folder
-requestPool= mp.cpu_count() * 12 # Determines the amount of proccesses working simultaneously for sending requests to download images
+requestPool= mp.cpu_count() * 6 # Determines the amount of proccesses working simultaneously for sending requests to download images
 session = requests.Session() # new session of requests
 
 def sliceSource(source):
