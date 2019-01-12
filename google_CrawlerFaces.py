@@ -11,6 +11,9 @@ import time
 import requests
 import numpy as np
 import multiprocessing as mp
+from requests.adapters import HTTPAdapter
+from urllib3.util import Retry
+
 
 # Libraries imported to find faces
 import cv2
@@ -18,50 +21,41 @@ import dlib
 
 SCALE_FACTOR = 0.6 # Determines the resize amount of the image when its processed, bigger= better detection but slower
 detector = dlib.get_frontal_face_detector()
-
-
-
 directory = os.path.join(os.path.dirname(os.path.abspath(__file__)),"Images") # Make a new folder called "Images" in the current folder
-requestPool= mp.cpu_count() * 4 # Determines the amount of proccesses working simultaneously for sending requests to download images
-
+requestPool= mp.cpu_count() * 3 # Determines the amount of proccesses working simultaneously for sending requests to download images
+session = requests.Session() # new session of requests
 
 def findFaces(link):
     try:
-        r = requests.get(link, allow_redirects=False, timeout=10)
-        nparr = np.fromstring(r.content, np.uint8)
-        im = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-        gray = cv2.cvtColor(im, cv2.COLOR_BGR2GRAY)
-        gray = cv2.resize(gray, (int(gray.shape[1] * SCALE_FACTOR),int(gray.shape[0] * SCALE_FACTOR))) 
-        rects = detector(gray, 1)
-        if rects:
-            fname = os.path.join(directory, link.split('/')[-1])
-            with open(fname, 'wb') as f:
-                f.write(r.content)
+        r=session.get(link, allow_redirects=False, timeout=4).content
+        nparr = np.fromstring(r, np.uint8) 
+        gray = cv2.imdecode(nparr, 0)
+        if isinstance(gray,np.ndarray):
+            gray = cv2.resize(gray, (int(gray.shape[1] * SCALE_FACTOR),int(gray.shape[0] * SCALE_FACTOR))) 
+            rects = detector(gray, 1)
+            if rects:
+                fname = os.path.join(directory, link.split('/')[-1])
+                with open(fname, 'wb') as f:
+                    f.write(r)
     except Exception as e:
-        print("Download failed:", e)  
+        print(e)  
 
 
 def sliceSource(source):
     soup = BS(source, "lxml")
-    return [imtype(a) for a in soup.find_all("div",{"class":"rg_meta"})] 
-
-
-def downloadImg(link):
-    print(f"downloading: {link}")
-    try:
-        r = requests.get(link, allow_redirects=False, timeout=10)
-        fname=os.path.join(os.path.dirname(os.path.abspath(__file__)),"images",link.split('/')[-1])
-        open(fname, 'wb').write(r.content)
-    except Exception as e:
-        print("Download failed:", e) 
+    res=(imtype(a) for a in soup.find_all("div",{"class":"rg_meta"})) 
+    return [value for value in res if value]
 
 def imtype(a):
     ja=json.loads(a.text)
+    legal_types=["png","jpg"]
     link, ftype = ja["ou"]  ,ja["ity"]
-    findText= link.lower().find(f".{ftype}")
-    if findText !=-1:
-        link = link[:findText+4]
-    return link
+    if any(t in ftype for t in legal_types):
+        findText= link.lower().find(f".{ftype}")
+        if findText !=-1:
+            link = link[:findText+4]
+        return link
+    return None
 
 def openUrl(browser,searchtext):
     url = "https://www.google.com/search?q="+searchtext+"&source=lnms&tbm=isch"
@@ -114,6 +108,13 @@ def main():
     options.add_argument("--headless")
     options.add_argument('--log-level=3')
 
+    #session options
+    retry = Retry(connect=2, backoff_factor=0.5)
+    adapter = HTTPAdapter(max_retries=retry)
+    session.mount('http://', adapter)
+    session.mount('https://', adapter)
+
+
     try:
         browser = webdriver.Chrome('chromedriver', chrome_options=options)
     except Exception as e:
@@ -131,15 +132,15 @@ def main():
     with mp.Pool(requestPool) as p: # Workers downloading the Images simultaneously
         p.map(findFaces, [url for url in actualImages])
 
-    for imgUrl in actualImages:
-        if len(imgUrl)>70: # Url is too long so cut to the chase before getting an error
-            continue
-        source= extended_openUrl(browser,imgUrl)# Get related images
-        if not source:
-            continue
-        secondaryImages=sliceSource(source)# Divides the image urls
-        with mp.Pool(requestPool) as p:# Workers downloading the images simultaneously
-            p.map(findFaces, [url for url in secondaryImages])
+    # for imgUrl in actualImages:
+    #     if len(imgUrl)>70: # Url is too long so cut to the chase before getting an error
+    #         continue
+    #     source= extended_openUrl(browser,imgUrl)# Get related images
+    #     if not source:
+    #         continue
+    #     secondaryImages=sliceSource(source)# Divides the image urls
+    #     with mp.Pool(requestPool) as p:# Workers downloading the images simultaneously
+    #         p.map(findFaces, [url for url in secondaryImages])
 
 
 
