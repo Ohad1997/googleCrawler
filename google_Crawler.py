@@ -12,9 +12,11 @@ import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util import Retry
 import multiprocessing as mp
+import numpy as np
+import cv2
 
 directory = os.path.join(os.path.dirname(os.path.abspath(__file__)),"Images") # Make a new folder called "Images" in the current folder
-requestPool= mp.cpu_count() * 6 # Determines the amount of proccesses working simultaneously for sending requests to download images
+requestPool= mp.cpu_count() * 10 # Determines the amount of proccesses working simultaneously for sending requests to download images
 session = requests.Session() # new session of requests
 
 def sliceSource(source):
@@ -34,12 +36,14 @@ def imtype(a):
     return None
 
 def downloadImg(link):
-    print(f"downloading: {link}")
     try:
         r = session.get(link, allow_redirects=False, timeout=4).content
-        fname=os.path.join(os.path.dirname(os.path.abspath(__file__)),"images",link.split('/')[-1])
-        with open(fname, 'wb') as f:
-            f.write(r)
+        nparr = np.fromstring(r, np.uint8) 
+        gray = cv2.imdecode(nparr, 0)
+        if isinstance(gray,np.ndarray):
+            fname=os.path.join(os.path.dirname(os.path.abspath(__file__)),"images",link.split('/')[-1])
+            with open(fname, 'wb') as f:
+                f.write(r)
     except Exception as e:
         print("Download failed:", e) 
 
