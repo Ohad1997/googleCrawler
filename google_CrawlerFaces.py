@@ -12,6 +12,7 @@ import numpy as np
 import multiprocessing as mp
 from requests.adapters import HTTPAdapter
 from urllib3.util import Retry
+import time
 
 # Libraries imported to find faces
 import cv2
@@ -75,7 +76,6 @@ def openUrl(browser,searchtext):
         except Exception:
             pass
         counter+=10
-    print("finished")
 
 
 def extended_openUrl(browser,imgUrl):
