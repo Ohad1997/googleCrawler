@@ -3,13 +3,10 @@
 # Import Libraries
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 import os
 import json
 import sys
-import time
 import requests
 import numpy as np
 import multiprocessing as mp
@@ -66,31 +63,32 @@ def openUrl(browser,searchtext):
     browser.get(url)
     print("Getting you a lot of images. This may take a few moments...")
     repeatAmount=120 # A safe range to get a minimum of 600 images
-    for _ in range(repeatAmount):
+    counter=0
+    while True:
+        try:
+            browser.find_element_by_xpath(f'//div[@data-ri="{counter}"]')
+        except Exception:
+            break
         browser.execute_script("window.scrollTo(0, document.body.scrollHeight);") # Scroll to bottom of page
         try:
             browser.find_element_by_id("smb").click() # Click on "show more images" button
         except Exception:
             pass
+        counter+=10
+    print("finished")
 
 
 def extended_openUrl(browser,imgUrl):
-    gImagesUrl= "https://images.google.com/"
-    # Open google images
-    browser.get(gImagesUrl)
     print("Getting you you more images related to your search queury...")
     browser.find_element_by_class_name("S3Wjs").click() # Search by url
-    time.sleep(0.5)
     inputElement = browser.find_element_by_class_name("lst") # Search button
     inputElement.send_keys(imgUrl)
-    time.sleep(0.5)
     inputElement.send_keys(Keys.ENTER)
     try:
         browser.find_element_by_class_name("mnr-c") # This class only shows up when google returns an error
         return None
     except Exception: 
         pass
-    time.sleep(0.5)
     textElement=browser.find_element_by_class_name("gLFyf") # Input text
     searchtext= textElement.get_attribute('value').replace(" ", "+")
     openUrl(browser,searchtext)
@@ -129,16 +127,16 @@ def main():
 
     actualImages=sliceSource(browser) # Divides the Images urls
     
-    # for imgUrl in actualImages:
-    #     if not imgUrl:
-    #         continue
-    #     if len(imgUrl)>70: # Url is too long so cut to the chase before getting an error
-    #         continue
-    #     success=extended_openUrl(browser,imgUrl)# Get related images
-    #     if not success:
-    #         continue
-    #     secondaryImages=sliceSource(browser)# Divides the image urls
-    #     #copy paste this part to loop as many times as u want
+    for imgUrl in actualImages:
+        if not imgUrl:
+            continue
+        if len(imgUrl)>70: # Url is too long so cut to the chase before getting an error
+            continue
+        success=extended_openUrl(browser,imgUrl)# Get related images
+        if not success:
+            continue
+        secondaryImages=sliceSource(browser)# Divides the image urls
+        #copy paste this part to loop as many times as u want
 
 
 
