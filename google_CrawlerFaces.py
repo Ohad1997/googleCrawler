@@ -126,7 +126,8 @@ def main():
         os.makedirs(directory)
 
     actualImages=sliceSource(browser) # Divides the Images urls
-    
+    img_total=len(actualImages)
+
     for imgUrl in actualImages:
         if not imgUrl:
             continue
@@ -136,12 +137,13 @@ def main():
         if not success:
             continue
         secondaryImages=sliceSource(browser)# Divides the image urls
+        img_total+=len(secondaryImages)
         #copy paste this part to loop as many times as u want
 
 
 
     # Speed check
-    print(f"downloaded and processed: {len([name for name in os.listdir(directory) if os.path.isfile(os.path.join(directory, name))])} images in {time.time() - sTime} seconds")
+    print(f"downloaded and processed: {img_total} images in {time.time() - sTime} seconds")
 
 
 if __name__=="__main__":
