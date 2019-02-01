@@ -3,7 +3,9 @@
 # Import Libraries
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
-from bs4 import BeautifulSoup as BS
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.by import By
 import os
 import json
 import sys
@@ -13,7 +15,6 @@ import numpy as np
 import multiprocessing as mp
 from requests.adapters import HTTPAdapter
 from urllib3.util import Retry
-
 
 # Libraries imported to find faces
 import cv2
@@ -37,17 +38,19 @@ def findFaces(link):
                 fname = os.path.join(directory, link.split('/')[-1])
                 with open(fname, 'wb') as f:
                     f.write(r)
+                    return link
+        return None
     except Exception as e:
-        print(e)  
-
-
-def sliceSource(source):
-    soup = BS(source, "lxml")
-    res=(imtype(a) for a in soup.find_all("div",{"class":"rg_meta"})) 
-    return [value for value in res if value]
+        print(e)
+        return None
+        
+def sliceSource(browser):
+    res = [value for value in (imtype(a) for a in browser.find_elements_by_class_name("rg_meta"))  if value]
+    with mp.Pool(requestPool) as p: # Workers downloading the Images simultaneously
+        return p.map(findFaces, [url for url in res if url])
 
 def imtype(a):
-    ja=json.loads(a.text)
+    ja=json.loads(a.get_attribute("innerHTML"))
     legal_types=["png","jpg"]
     link, ftype = ja["ou"]  ,ja["ity"]
     if any(t in ftype for t in legal_types):
@@ -70,8 +73,6 @@ def openUrl(browser,searchtext):
         except Exception:
             pass
 
-    return browser.page_source
-
 
 def extended_openUrl(browser,imgUrl):
     gImagesUrl= "https://images.google.com/"
@@ -92,9 +93,8 @@ def extended_openUrl(browser,imgUrl):
     time.sleep(0.5)
     textElement=browser.find_element_by_class_name("gLFyf") # Input text
     searchtext= textElement.get_attribute('value').replace(" ", "+")
-    source=openUrl(browser,searchtext)
-    return source
-    
+    openUrl(browser,searchtext)
+    return True
     
     
 #------------- Main Program -------------#
@@ -105,7 +105,7 @@ def main():
     
     #Options for better performance
     options.add_argument('--no-sandbox')
-    options.add_argument("--headless")
+    # options.add_argument("--headless")
     options.add_argument('--log-level=3')
 
     #session options
@@ -122,24 +122,23 @@ def main():
                 "installed on your machine (exception: %s)" % e)
         sys.exit()
 
-    source= openUrl(browser,searchtext) # Get page source
+    openUrl(browser,searchtext) # Get page source
 
     if not os.path.exists(directory): # If folder "Images" doesnt exist, create it
         os.makedirs(directory)
 
-    actualImages=sliceSource(source) # Divides the Images urls
-    with mp.Pool(requestPool) as p: # Workers downloading the Images simultaneously
-        p.map(findFaces, [url for url in actualImages])
-
+    actualImages=sliceSource(browser) # Divides the Images urls
+    
     # for imgUrl in actualImages:
+    #     if not imgUrl:
+    #         continue
     #     if len(imgUrl)>70: # Url is too long so cut to the chase before getting an error
     #         continue
-    #     source= extended_openUrl(browser,imgUrl)# Get related images
-    #     if not source:
+    #     success=extended_openUrl(browser,imgUrl)# Get related images
+    #     if not success:
     #         continue
-    #     secondaryImages=sliceSource(source)# Divides the image urls
-    #     with mp.Pool(requestPool) as p:# Workers downloading the images simultaneously
-    #         p.map(findFaces, [url for url in secondaryImages])
+    #     secondaryImages=sliceSource(browser)# Divides the image urls
+    #     #copy paste this part to loop as many times as u want
 
 
 
